@@ -1,0 +1,156 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+
+<head>
+    <title></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+    <script type="text/javascript" src="http://ecn.dev.virtualearth.net/mapcontrol/mapcontrol.ashx?v=7.0&mkt=fr-FR"></script>
+    <script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-2.1.4.min.js"></script>
+    <script type="text/javascript" src="wicket.js"></script>
+    <script type="text/javascript">
+        var map = null;
+        $(document).ready(function initialize() {
+            Microsoft.Maps.loadModule('Microsoft.Maps.AdvancedShapes');
+            var mapOptions = {
+                credentials: "<ADD YOUR BING MAP API KEY HERE>", // https://www.bingmapsportal.com/
+                center: new Microsoft.Maps.Location(46.52863469527167, 2.43896484375),
+                mapTypeId: Microsoft.Maps.MapTypeId.road,
+                zoom: 5,
+                showScalebar: false
+            };
+
+            map = new Microsoft.Maps.Map(document.getElementById("mapDiv"), mapOptions);
+        });
+
+        function ClickGeocode(credentials) {
+            map.getCredentials(MakeGeocodeRequest);
+        }
+
+        function MakeGeocodeRequest(credentials) {
+            // Geodata API (Preview)
+            var geocodeRequest = "https://platform.bing.com/geo/spatial/v1/public/geodata?spatialFilter=GetBoundary('" + encodeURI(document.getElementById('txtQuery').value) + "',3,'Postcode1',true,true,'fr','FR')&key=" + credentials + "&$format=json";
+
+            CallRestService(geocodeRequest, boundaryCallback)
+        }
+
+        function CallRestService(request, callback) {
+            $.ajax({
+                url: request,
+                dataType: "jsonp",
+                jsonp: "jsonp",
+                success: function (r) {
+                    callback(r);
+                },
+                error: function (e) {
+                    alert(e.statusText);
+                }
+            });
+        }
+
+        function boundaryCallback(result) {
+
+            map.entities.clear();
+
+            var entity = result.d.results[0];
+            var primitives = entity.Primitives;
+            var entityMetadata = entity.EntityMetadata;
+            var polygoncolor = null;
+            var strokecolor = null;
+            var boundaryVertices = null;
+            var numOfVertices = 0;
+
+            polygoncolor = new Microsoft.Maps.Color(100, 100, 0, 100);
+            strokecolor = new Microsoft.Maps.Color(100, 100, 0, 100);
+
+            var polygonArray = new Array();
+            for (var i = 0; i < primitives.length; i++) {
+                var ringStr = primitives[i].Shape;
+                var ringArray = ringStr.split(",");
+
+                for (var j = 1; j < ringArray.length; j++) {
+                    var array = ParseEncodedValue(ringArray[j]);
+
+                    if (array.length > numOfVertices) {
+                        numOfVertices = array.length;
+                        boundaryVertices = array;
+                    }
+                    polygonArray.push(array);
+                }
+
+                var polygon = new Microsoft.Maps.Polygon(polygonArray, { fillColor: polygoncolor, strokeColor: strokecolor });
+
+                map.entities.push(polygon)
+
+            }
+            // Set the map view using the returned bounding box
+            // Create a new Wicket instance
+            var wkt = new Wkt.Wkt();
+
+            // Read in any kind of WKT string
+            wkt.read(entityMetadata.BestMapViewBox);
+            var bbox = wkt.toJson().coordinates;
+
+            // "north,west,south,east".
+            var viewBoundaries = Microsoft.Maps.LocationRect.fromString(bbox[1][1] + ',' + bbox[0][0] + ',' + bbox[0][1] + ',' + bbox[1][0])
+
+            map.setView({ bounds: viewBoundaries });
+        }
+
+        function ParseEncodedValue(value) {
+            var safeCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
+            var list = new Array();
+            var index = 0;
+            var xsum = 0;
+            var ysum = 0;
+            var max = 4294967296;
+
+            while (index < value.length) {
+                var n = 0;
+                var k = 0;
+
+                while (1) {
+                    if (index >= value.length) {
+                        return null;
+                    }
+                    var b = safeCharacters.indexOf(value.charAt(index++));
+                    if (b == -1) {
+                        return null;
+                    }
+                    var tmp = ((b & 31) * (Math.pow(2, k)));
+
+                    var ht = tmp / max;
+                    var lt = tmp % max;
+
+                    var hn = n / max;
+                    var ln = n % max;
+
+                    var nl = (lt | ln) >>> 0;
+                    n = (ht | hn) * max + nl;
+                    k += 5;
+                    if (b < 32) break;
+                }
+
+                var diagonal = parseInt((Math.sqrt(8 * n + 5) - 1) / 2);
+                n -= diagonal * (diagonal + 1) / 2;
+                var ny = parseInt(n);
+                var nx = diagonal - ny;
+                nx = (nx >> 1) ^ -(nx & 1);
+                ny = (ny >> 1) ^ -(ny & 1);
+                xsum += nx;
+                ysum += ny;
+                var lat = ysum * 0.00001;
+                var lon = xsum * 0.00001
+                list.push(new Microsoft.Maps.Location(lat, lon));
+            }
+            return list;
+        }
+
+    </script>
+</head>
+<body>
+    <div id='mapDiv' style="position:relative; width:600px; height:600px;"></div>
+    <input id="txtQuery" type="text" value="Paris" />
+    <input type="button" value="Geocode" onclick="ClickGeocode()" />
+</body>
+</html>

@@ -1,0 +1,81 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+
+<head>
+    <title></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <script type="text/javascript" src="http://ecn.dev.virtualearth.net/mapcontrol/mapcontrol.ashx?v=7.0&mkt=fr-FR"></script>
+    <script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-2.1.4.min.js"></script>
+    <script type="text/javascript">
+        var map = null;
+        $(document).ready(function initialize() {
+            Microsoft.Maps.loadModule('Microsoft.Maps.AdvancedShapes');
+            var mapOptions = {
+                credentials: "<ADD YOUR BING MAP API KEY HERE>", // https://www.bingmapsportal.com/
+                center: new Microsoft.Maps.Location(46.52863469527167, 2.43896484375),
+                mapTypeId: Microsoft.Maps.MapTypeId.road,
+                zoom: 5,
+                showScalebar: false
+            };
+
+            map = new Microsoft.Maps.Map(document.getElementById("mapDiv"), mapOptions);
+        });
+
+        function ClickGeocode(credentials) {
+            map.getCredentials(MakeGeocodeRequest);
+        }
+
+        function MakeGeocodeRequest(credentials) {
+            var geocodeRequest = "http://nominatim.openstreetmap.org/?format=json&street=&city=" + encodeURI(document.getElementById('txtQuery').value) + "&county=&state=&country=&postalcode=&limit=1&polygon_geojson=1&accept-language=fr&countrycodes=fr"
+
+            CallRestService(geocodeRequest, boundaryCallback)
+        }
+
+        function CallRestService(request, callback) {
+            $.ajax({
+                url: request,
+                dataType: "json",
+                success: function (r) {
+                    callback(r);
+                },
+                error: function (e) {
+                    alert(e.statusText);
+                }
+            });
+        }
+
+        function boundaryCallback(result) {
+
+            map.entities.clear();
+
+            var primitives = result[0].geojson.coordinates[0];
+            var bbox = result[0].boundingbox;
+            var polygoncolor = null;
+            var strokecolor = null;
+
+            polygoncolor = new Microsoft.Maps.Color(100, 100, 0, 100);
+            strokecolor = new Microsoft.Maps.Color(100, 100, 0, 100);
+
+            var polygonArray = new Array();
+            for (var i = 0; i < primitives.length; i++) {
+                polygonArray.push(new Microsoft.Maps.Location(primitives[i][1], primitives[i][0]));
+            }
+
+            var polygon = new Microsoft.Maps.Polygon(polygonArray, { fillColor: polygoncolor, strokeColor: strokecolor });
+
+            map.entities.push(polygon)
+
+            // "north,west,south,east"
+            var viewBoundaries = Microsoft.Maps.LocationRect.fromCorners(new Microsoft.Maps.Location(bbox[0], bbox[2]), new Microsoft.Maps.Location(bbox[1], bbox[3]));
+            map.setView({ bounds: viewBoundaries });
+        }
+    </script>
+</head>
+
+<body>
+    <div id='mapDiv' style="position:relative; width:600px; height:600px;"></div>
+    <input id="txtQuery" type="text" value="Paris" />
+    <input type="button" value="Geocode" onclick="ClickGeocode()" />
+</body>
+
+</html>
