@@ -8,4 +8,4 @@ Feel free to use these samples!
 
 ## How it works?
 
-Just go to the [Bing Maps Dev Center](https://www.bingmapsportal.com/) and grab an API key. Paste it in the header of the file `index.html`
+Just go to the [Bing Maps Dev Center](https://www.bingmapsportal.com/) and grab an API key. Paste it in the header of the file `index.html` instead of `<ADD YOUR BING MAP API KEY HERE>`
